@@ -9,6 +9,7 @@ import rospy
 import rospkg
 import sys
 import os
+import traceback
 
 from sensor_msgs.msg import Image
 
@@ -40,6 +41,7 @@ class ArucoEDCNode():
 
         self.orig_img_pub        = rospy.Publisher('/cv/aruco_edc/orig', Image, queue_size= 1)
         self.proc_img_pub        = rospy.Publisher('/cv/aruco_edc/proc', Image, queue_size= 1)
+        self.proc2_img_pub       = rospy.Publisher('/cv/aruco_edc/proc2', Image, queue_size= 1)
 
         self.bridge = CvBridge()
         
@@ -101,7 +103,7 @@ class ArucoEDCNode():
             self.cv_image_publisher(self.orig_img_pub, self.cv_image, "bgr8")
 
             try:
-                self.proc_img = self.aruco_edc.detect(self.cv_image,
+                self.proc_img, self.proc2_img = self.aruco_edc.detect(self.cv_image,
                                                     self.canny_threshold1,
                                                     self.canny_threshold2,
                                                     self.ksize1,
@@ -114,9 +116,12 @@ class ArucoEDCNode():
                                                     self.dilation_iterations)
 
                 self.cv_image_publisher(self.proc_img_pub, self.proc_img, "bgr8")
+                self.cv_image_publisher(self.proc2_img_pub, self.proc2_img, "bgr8")
+
                 rospy.loginfo("Executed ArUco Detection...")
         
             except Exception:
+                print(traceback.format_exc())
                 pass    
             
             self.ros_rate.sleep()

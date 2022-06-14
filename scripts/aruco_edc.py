@@ -1,6 +1,8 @@
 #! /usr/bin/env python
+from xml.dom import HierarchyRequestErr
 import cv2 as cv
 import numpy as np
+import traceback
 
 from image_preprocessing import ImagePreprocessing
 from feature_detection import ImageFeatureProcessing
@@ -56,6 +58,48 @@ class ArucoEDC:
         morphised_image = cv.dilate(
             erosion_img, erosion_dilation_kernel, iterations=dilation_it
         )
+        contours, hierarchy = cv.findContours(
+            morphised_image, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE
+        )
+        # contours, hierarchy = cv.findContours(morphised_image, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+        print(contours)
+
+        filtered_contours = []
+        try:
+            num_of_contours = len(contours)
+
+            for cnt_idx in range(num_of_contours):
+                cnt = contours[cnt_idx]
+                cnt_area = cv.contourArea(cnt)
+                
+                # Filters out contours with less-than-predefined threshold area 
+                if cnt_area < 1200:
+                    filtered_contours.append(False)
+                else:
+                    # Filters out contours with less-than-predefined threshold perimeter
+                    if cv.arcLength(cnt, True) > 20:
+                        filtered_contours.append(True)
+                    else:
+                        filtered_contours.append(False)
+        except Exception:
+            print(traceback.format_exc())
+            pass
+
+        contours_array = np.array(contours)
+        contours_filtered = contours_array[filtered_contours]
+
+        approx_cnts = []
+        for cnt in contours_filtered:
+            # approx_cnt = cv.approxPolyDP(cnt, 0.5, True) 
+            # approx_cnts.append(approx_cnt)
+            peri = cv.arcLength(cnt, True)
+            corners = cv.approxPolyDP(cnt, 0.04 * peri, True)
+            approx_cnts.append(corners)
         
+
+        cnt_image = cv.drawContours(clahe_img, approx_cnts, -1, (0,0,255), 2)
+        
+        # cv.polylines(clahe_img, approx_cnts, True, (0,0,255), 1, cv.LINE_AA)
         # return 3 channel img
-        return cv.cvtColor(morphised_image, cv.COLOR_GRAY2BGR)
+        return clahe_img, cv.cvtColor(morphised_image, cv.COLOR_GRAY2BGR)
